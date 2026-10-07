@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アフリカ神話・伝承アーカイブ</title>
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-color: #fdfbf7;
+            --paper-color: #f4efe4;
+            --accent-yellow: #d4a373;
+            --text-color: #3d312a;
+            --border-color: #bcac9b;
+            --card-bg: #faf7f2;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'MS PMincho', serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--paper-color);
+            border-bottom: 2px solid var(--border-color);
+            text-align: center;
+            padding: 20px 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+            letter-spacing: 2px;
+            color: #2b2118;
+        }
+
+        header p {
+            margin: 5px 0 0 0;
+            font-size: 0.9rem;
+            color: #7a6b5d;
+        }
+
+        #main-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 80px);
+            position: relative;
+        }
+
+        /* Map styling */
+        #map {
+            flex: 1;
+            background-color: #e2dacd; /* 海の色を羊皮紙風に */
+            z-index: 1;
+        }
+
+        /* 古地図風CSSフィルタ */
+        .leaflet-tile-pane {
+            filter: sepia(0.6) hue-rotate(-15deg) contrast(0.95) brightness(0.95);
+        }
+
+        /* カスタムピン */
+        .custom-pin {
+            background-color: #8b5e3c;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.4);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .custom-pin:hover {
+            transform: scale(1.3);
+            background-color: var(--accent-yellow);
+        }
+
+        /* 詳細サイドパネル */
+        #details-panel {
+            width: 450px;
+            background-color: var(--paper-color);
+            border-left: 2px solid var(--border-color);
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 2;
+        }
+
+        .panel-placeholder {
+            text-align: center;
+            color: #8a7b6c;
+            margin-top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .region-title {
+            font-size: 1.6rem;
+            border-bottom: 2px solid var(--accent-yellow);
+            padding-bottom: 5px;
+            margin-top: 0;
+        }
+
+        .section-tab {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-yellow);
+            color: #fff;
+            border-color: var(--accent-yellow);
+        }
+
+        .entry-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .entry-card h4 {
+            margin: 0 0 5px 0;
+            font-size: 1.1rem;
+            color: #5c4033;
+        }
+
+        .entry-location {
+            font-size: 0.8rem;
+            color: #8c6d58;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+
+        .entry-card p {
+            font-size: 0.88rem;
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+
+        .entry-card strong {
+            color: #6e472d;
+        }
+
+        /* 参考文献エリア */
+        #references {
+            background-color: var(--paper-color);
+            border-top: 2px solid var(--border-color);
+            padding: 20px;
+            font-size: 0.85rem;
+        }
+
+        #references h3 {
+            margin-top: 0;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        #references ul {
+            padding-left: 20px;
+            margin: 5px 0 15px 0;
+        }
+
+        #references li {
+            margin-bottom: 4px;
+        }
+
+        #references a {
+            color: #8b5e3c;
+            text-decoration: none;
+        }
+
+        #references a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            #main-container {
+                flex-direction: column;
+                height: auto;
+            }
+            #map {
+                height: 400px;
+            }
+            #details-panel {
+                width: 100%;
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>アフリカ神話・伝承の地勢図</h1>
+        <p>古地図上の各地域をクリックして伝承（化け物・神々）の記録を閲覧できます</p>
+    </header>
+
+    <div id="main-container">
+        <!-- Map Canvas -->
+        <div id="map"></div>
+
+        <!-- Right Side Panel -->
+        <div id="details-panel">
+            <div class="panel-placeholder">
+                <p>地図上のマーカー（ピン）を選択すると<br>その地域の詳細情報が表示されます。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- References Section -->
+    <section id="references">
+        <h3>参考文献</h3>
+        
+        <h4>本</h4>
+        <ul>
+            <li>岡倉鳳葉 『アフリカの神話と民話』 中央公論新社、2001年3月10日、2026年9月24日参照。</li>
+            <li>浅見昇吾 『世界の神話・伝説事典』 創元社、2012年8月20日、2026年9月24日参照。</li>
+            <li>パトリシア・アン・ターナー、チャールズ・ラッセル・コールター 『世界神話辞典』 丸善出版、2000年11月1日、2026年9月24日参照。</li>
+        </ul>
+
+        <h4>サイト</h4>
+        <ul>
+            <li>GENSO SEKAI 「アフリカの神話・民話 Africa」 幻想世界神話辞典、2024年1月15日、<a href="https://jiten.info/dic/Africa.html" target="_blank" rel="noopener">https://jiten.info/dic/Africa.html</a>、2026年9月24日参照。</li>
+            <li>アフリカトリビア編集部 「アフリカにも“妖怪”はいる？現地の精霊・怪物・民間伝承まとめ！」 アフリカトリビア、2023年5月10日、<a href="https://africa-trivia.com/densetu/entry338.html" target="_blank" rel="noopener">https://africa-trivia.com/densetu/entry338.html</a>、2026年9月24日参照。</li>
+            <li>妖怪屋事務局 「オニャンコポンとアフリカの妖怪たち」 妖怪屋公式Web、2021年2月14日、<a href="https://youkaiya.jp/archives/2685" target="_blank" rel="noopener">https://youkaiya.jp/archives/2685</a>、2026年9月24日参照。</li>
+        </ul>
+    </section>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Database
+        const mythData = {
+            west: {
+                name: "1. 西アフリカ（West Africa）",
+                lat: 9.6,
+                lng: 2.3,
+                monsters: [
+                    { name: "アサンボサム（Asanbosam）", loc: "ガーナ共和国（アシャンティ州周辺の熱帯雨林）", desc: "鉄の歯と鉤爪の足を持つ吸血鬼のような怪物。木の上に隠れ、通りかかる狩人の首を吊り上げて血を吸う。", origin: "深い森の恐怖や、狩りに出て戻らない人々への教訓・警鐘として自然発生的に語られるようになった。" },
+                    { name: "アドゼ（Adze）", loc: "ガーナ共和国、トーゴ共和国（エウェ族の居住地域）", desc: "ホタルに化けて家屋に侵入し、人間に取り憑いて病気にさせたり血を吸ったりする悪霊。", origin: "原因不明の発熱やマラリアなどの病の原因を説明するために伝承された。" },
+                    { name: "アバトゥト（Abatwa）", loc: "ナイジェリア連邦共和国など", desc: "アリの背中に乗れるほど極小の精霊。プライドが高く、見下されると毒矢で人間を殺す。", origin: "森の中での視覚的錯覚や、見えない危険（毒虫や蛇）に対する注意喚起から誕生した。" },
+                    { name: "ユルグ（Yurugu）", loc: "マリ共和国（バンディアガラの断崖・ドゴン族の地域）", desc: "闇と混沌を象徴するキツネの怪物。不完全で不調和な存在として描かれる。", origin: "最高神アンマによる創世の際、卵の中で性急に生まれようとして失敗し、不完全なまま地上へ落ちた。" },
+                    { name: "ノモ（Nommo）の異形体", loc: "マリ共和国（ドゴン地方）", desc: "上半身が人間、下半身が蛇や魚の姿をした不気味な水精・半獣。", origin: "天空神アンマによって創造された水と生命の創造物。" },
+                    { name: "アビク（Abiku）", loc: "ナイジェリア連邦共和国（ヨルバランド）", desc: "幼子に取り憑く悪霊。子供を繰り返し早死にさせ、母親を苦しめる。", origin: "乳幼児死亡率が高かった時代に、病で命を落とす子供たちの悲劇を説明するために生まれた。" },
+                    { name: "インパンドゥル（Impundulu）の伝承異体", loc: "ベナン共和国周辺", desc: "雷を操る巨大な鳥の怪物。人間の血を好み、嵐と共に降り立つ。", origin: "激しい雷雨や落雷による被害を恐怖の対象として擬人化した。" },
+                    { name: "モアティア（Mmoatia）", loc: "ガーナ共和国（アシャンティ地方）", desc: "足が後ろを向いている小人の精霊。薬草に詳しいが、人間を狂わせるいたずら好き。", origin: "薬草探しの伝承や、森の中で迷子になる現象から誕生した。" },
+                    { name: "サモ（Samo）", loc: "シエラレオネ共和国（内地森林帯）", desc: "森の深い場所に棲み、夜間に旅人を惑わして底なし沼に引きずり込む巨人。", origin: "夜間の危険な沼地や未開の森への立ち入りを防ぐ戒めとして語り継がれた。" },
+                    { name: "オグバニ（Ogbanje）", loc: "ナイジェリア連邦共和国（イボ族の地域）", desc: "家族に不幸をもたらすために繰り返し同じ母親から生まれ変わり、若くして死ぬ不吉な霊。", origin: "呪術的観点から家系の災難や子供の連続死を解釈するために形成された。" }
+                ],
+                gods: [
+                    { name: "オロルン（Olorun）", loc: "ナイジェリア連邦共和国（イフェ市周辺およびヨルバ地域全域）", desc: "天空神であり、ヨルバ神話における最高神。万物の創造主。", origin: "宇宙の始まりに自発的に存在し、世界と他の神々（オリシャ）を誕生させた。" },
+                    { name: "シャンゴ（Sango）", loc: "ナイジェリア連邦共和国（オヨ州周辺）", desc: "雷・嵐・正義を司る神。両刃の斧を持ち、火を吐く強力な武神。", origin: "歴史上のオヨ王国の第3代国王が神格化され、雷神としての伝承と融合した。" },
+                    { name: "オシュン（Oshun）", loc: "ナイジェリア連邦共和国（オショグボ市・オシュン川流域）", desc: "美、愛、豊穣、そして淡水を司る優しい女神。", origin: "最高神オロルンが世界を創った際、世界に生命と調和をもたらすために遣わされた。" },
+                    { name: "オグン（Ogun）", loc: "ナイジェリア連邦共和国（イフェおよびアイエキティ周辺）", desc: "鉄、戦争、技術、開拓を司る神。金属加工を行う者の守護神。", origin: "神々が地上に降臨する際、密集した草木を鉄の斧で切り開いた最古の神の一柱。" },
+                    { name: "オニャンコポン（Onyankopon）", loc: "ガーナ共和国（クマシ周辺・アシャンティ地域）", desc: "天に住む全能の最高神。全知全能の偉大な存在。", origin: "万物の根源として太古より存在し、世界を創造したとされる。" },
+                    { name: "エシュ（Eshu）", loc: "ナイジェリア連邦共和国（ヨルバランド全域）", desc: "運命、伝達、交差点、運を司るトリックスターの神。", origin: "神と人間の仲介者として、言葉と運命の法則を調整するために生成された。" },
+                    { name: "オロクン（Olokun）", loc: "ナイジェリア連邦共和国（ベニン市および沿岸部）", desc: "深海と富を司る偉大な海の神（あるいは女神）。", origin: "地上が創られる前、水に覆われていた世界を支配していた元始の神。" },
+                    { name: "ニャメ（Nyame）", loc: "ガーナ共和国（アカン族の居住地域）", desc: "太陽と雨をもたらす天空の最高神。", origin: "宇宙の開闢とともに現れ、月神（アサセ・ヤ）と共に世界を統治する。" },
+                    { name: "アンマ（Amma）", loc: "マリ共和国（ドゴン地方）", desc: "宇宙と生命をひとつに丸めた「卵」から世界を創った絶対的最高神。", origin: "無の空間に最初に現れ、自らの中に全宇宙の原像を描いて創造を開始した。" },
+                    { name: "ナナ・ブルク（Nana Buluku）", loc: "ベナン共和国（フォン族・ダホメ王国の地域）", desc: "祖神であり、双子の神（リサとマウ）を生み出した双性の最高女神。", origin: "宇宙形成の最初に存在した最古の神性。" }
+                ]
+            },
+            central: {
+                name: "2. 中部・中央アフリカ（Central Africa）",
+                lat: -0.2,
+                lng: 20.8,
+                monsters: [
+                    { name: "モケーレ・ムベンベ（Mokele-mbembe）", loc: "コンゴ共和国（テレ湖周辺の湿地帯）", desc: "ゾウほどの大きさで長い首を持つ川の怪物。縄張り意識が強くカバを襲う。", origin: "未開の密林や湿地帯における未確認生命体への畏怖から口承された。" },
+                    { name: "コンガマトー（Kongamato）", loc: "ザンビア共和国（ジウンボ湿原周辺）", desc: "赤い皮膚と翼を持つ翼竜のような怪物。川の船をひっくり返し人間を襲う。", origin: "恐ろしい外見の水辺の生き物や、暗い湿地での事故への恐怖から生まれた。" },
+                    { name: "ンブル（Mbulu）", loc: "コンゴ民主共和国（コンゴ川流域）", desc: "人間に化けて家庭に入り込み、夜中に家族の食料や生き血を貪る魔物。", origin: "身内や共同体の中に潜む裏切りや盗難のメタファーとして語られた。" },
+                    { name: "エンゲラ（Ngela）", loc: "中央アフリカ共和国（熱帯雨林帯）", desc: "巨大な一本足で飛び跳ねる森林の怪物。出会った者を捕まえて喰らう。", origin: "密林で遭遇する危険な野生動物の気配が怪物化して伝えられた。" },
+                    { name: "ムビワ（Mubiwa）", loc: "コンゴ民主共和国・アンゴラ共和国国境地域", desc: "人間に憑依して精神を狂わせ、奇行に走らせる影のような悪霊。", origin: "集団内で突如発狂した者や、解明できない病を説明するために生じた。" },
+                    { name: "イルカンジの水妖（Irukandji Spirit）", loc: "ガボン共和国（オゴウェ川流域）", desc: "水中に潜み、泳ぐ者の足を引っ張って溺れさせる冷たい手の水妖。", origin: "川での事故や急な水流による水死事故を防ぐための戒め。" },
+                    { name: "ンガンガの影（Nganga Shadow）", loc: "コンゴ民主共和国（マディンバ周辺）", desc: "悪意ある術者に操られ、夜間に村人の夢の中へ侵入して寿命を削る生霊。", origin: "悪意のある呪術に対する集団的な恐れから形成された。" },
+                    { name: "ルル（Lulu）", loc: "カメルーン共和国（南部森林地帯）", desc: "燃える目を持つ巨大な猿の怪物。夜間に集落の家畜を連れ去る。", origin: "大型類人猿（ゴリラ等）への恐怖や夜間の家畜失踪事件から誕生。" },
+                    { name: "ンガコーラ（Ngakola）", loc: "中央アフリカ共和国（バンダ族の地域）", desc: "人間を呑み込んでから吐き出すと言われる、不気味な咆哮をあげる森の怪物。", origin: "成人儀礼の際の試練や象徴的な「死と再生」の比喩として誕生。" },
+                    { name: "チポフェ（Chipfalamfula）", loc: "ザンビア共和国・コンゴ民主共和国国境（ルアプラ川流域）", desc: "川の流れをせき止めるほどの巨体を持つ水蛇の怪物。", origin: "季節的な洪水や干ばつなどの自然現象を巨大な生物の業として解釈した。" }
+                ],
+                gods: [
+                    { name: "ンザムビ（Nzambi）", loc: "コンゴ民主共和国・アンゴラ共和国（バコンゴ伝統地域）", desc: "天空と地上すべてを創造した至高神。正義を司る。", origin: "世界の秩序と生命の根源として、太古の神話において創世された。" },
+                    { name: "ガレ（Gale）", loc: "中央アフリカ共和国（マンジャ族の地域）", desc: "世界と最初の人間を創り出した至高の生命神。", origin: "宇宙の開闢に際し、自らの意志で世界を構築したとされる。" },
+                    { name: "セト（Seto）", loc: "中央アフリカ共和国（マンジャ地域）", desc: "時にトリックスターであり、人間に火や知恵をもたらした英雄神。", origin: "神ガレによって作られ、地上で人間と共に暮らす中で神格化した。" },
+                    { name: "ンジャムビ（Njambi）", loc: "カメルーン共和国・ガボン共和国（レレ族・ファン族の地域）", desc: "太陽と天候を司り、人々に命を与える慈愛の神。", origin: "光と命をもたらす存在として創世記から存在する。" },
+                    { name: "ボムバ（Bumba）", loc: "コンゴ民主共和国（ブショング族の地域）", desc: "白い巨体の姿をした創世神。お腹の痛みに耐えて太陽や月、生物を口から吐き出して世界を創った。", origin: "暗闇と水しかなかった始原の時代に、孤独から宇宙を産み落とした。" },
+                    { name: "カンバ（Kamba）", loc: "コンゴ盆地（ピグミー系諸民族の伝承地）", desc: "森そのものであり、狩猟の成果を約束する森の守護神。", origin: "森林とともに常に存在し、自然の恩恵の象徴として祀られた。" },
+                    { name: "ルバンバ（Lubamba）", loc: "コンゴ民主共和国（カサイ地方）", desc: "巨大な蛇の姿をした大地の守護神。鉱物や大地の富を司る。", origin: "地下世界の王として、大地の隆起とともに誕生した。" },
+                    { name: "キボデ（Kibode）", loc: "ガボン共和国（赤道地方）", desc: "月と夜の静けさを守り、病を癒やす能力を持つ神。", origin: "天空の秩序を維持するため、最高神によって夜の守護者として置かれた。" },
+                    { name: "ムンゴ（Mungo）", loc: "カメルーン共和国（沿岸部）", desc: "海と大雨を支配し、魚の豊漁をもたらす神。", origin: "恵みの雨と海洋資源のありがたさを神格化した。" },
+                    { name: "ンガラ（Ngala）", loc: "チャド共和国南部・中央アフリカ共和国北部", desc: "恵みの風を送り、農作物の実りを助ける風と農業の神。", origin: "乾季から雨季への季節の移り変わりの中で崇拝されるようになった。" }
+                ]
+            },
+            east: {
+                name: "3. 東アフリカ（East Africa）",
+                lat: -2.5,
+                lng: 36.8,
+                monsters: [
+                    { name: "ポポバワ（Popobawa）", loc: "タンザニア連合共和国（ザンジバル島）", desc: "1つの目を持ち、コウモリのような翼を生やした変幻自在の怪物。夜間に人々を襲う。", origin: "島嶼部の社会的不安や、古い悪霊伝承が集団パニックと結びついて発生した。" },
+                    { name: "ネナウニル（Nenaunir）", loc: "ケニア共和国（グレート・リフト・バレー周辺・マサイの地域）", desc: "竹馬に乗ったような細長い脚を持つ恐ろしい食人鬼。", origin: "夜間のサバンナの恐怖や、子供たちへのしつけの教訓として語られた。" },
+                    { name: "ムボヨ（Mboyo）", loc: "ウガンダ共和国（ビクトリア湖周辺）", desc: "ライオンと人間が合体したような姿を持つ獣人。", origin: "夜間に人を襲う肉食獣への恐れが具象化された。" },
+                    { name: "ジョガ（Joga）", loc: "ケニア共和国（トゥルカナ湖周辺）", desc: "水底に潜み、泳ぐ者を湖の深みへと引きずり込む水の悪魔。", origin: "水難事故や未知の水深に対する恐れから生じた。" },
+                    { name: "キルンギキビ（Kirungikibi）", loc: "タンザニア連合共和国（キジバ地方）", desc: "変幻自在で、人間を病気にさせる森の陰気な怪異。", origin: "未知の風土病や熱病の原因として伝承された。" },
+                    { name: "ワレンガ（Warenga）", loc: "ケニア共和国・タンザニア連合共和国国境付近", desc: "人間の言葉を話し、旅人を騙して捕らえて食べる人面獣。", origin: "荒野で道に迷った者を狙う危険や詐術への戒め。" },
+                    { name: "チェモシ（Chemosit）", loc: "ケニア共和国（ナンディ地方）", desc: "半分が鳥、半分がハイエナの姿をした怪物。頭部に発光体を持つ。", origin: "サバンナで夜間に光る動物の目や不気味な鳴き声から構想された。" },
+                    { name: "ルクワタ（Lukuwata）", loc: "ウガンダ共和国（ビクトリア湖）", desc: "湖に棲む巨大な水蛇。船を襲いカヌーを飲み込む。", origin: "ビクトリア湖の大波や巨大魚（ナイルパーチ等）の存在から生まれた。" },
+                    { name: "シェタニ（Shetani）", loc: "タンザニア連合共和国・モザンビーク共和国", desc: "歪んだ身体構造を持つ奇妙な精霊・怪物。", origin: "アラビア語の「シターン（悪魔）」と地元の精霊信仰が融合して発生。" },
+                    { name: "ジニ（Jini）", loc: "スワヒリ海岸（ケニア共和国のモンバサ等）", desc: "瓶や古い建物に棲み、人間に取り憑いて幸運や災厄をもたらす霊魔。", origin: "イスラム文化の「ジニー（ジン）」がスワヒリ沿岸貿易を通じて土着化した。" }
+                ],
+                gods: [
+                    { name: "ンガイ（Ngai）", loc: "ケニア共和国・タンザニア連合共和国（キリマンジャロ山およびケニア山周辺）", desc: "ケニア山の頂に住む絶対的な天空神。恵みの雨を与える。", origin: "壮大な山々や空の威容に対する畏敬から、万物の創造主として敬われた。" },
+                    { name: "ルガバ（Rugaba）", loc: "ウガンダ共和国（アンコレ王国の地域）", desc: "人々に生命、健康、作物の実りを与える最高神。", origin: "世界の秩序を整え、恵みを与える存在として創世された。" },
+                    { name: "ルハンガ（Ruhanga）", loc: "ウガンダ共和国（バニョロ王国の地域）", desc: "世界と人類を創造し、死や病を退ける制作の神。", origin: "太古の混沌から存在し、天と地を分けて人間を創った。" },
+                    { name: "ワマラ（Wamara）", loc: "タンザニア連合共和国（キジバ地方）", desc: "水と豊穣を司る王神。神秘的な力で国を護る。", origin: "実在した王朝（バチウェジ王朝）の半神話的な王が死後に神格化された。" },
+                    { name: "ニャサエ（Nyasaye）", loc: "ケニア共和国（ルオ族・ルヒヤ族の地域）", desc: "太陽の光を通じて世界を照らし、正義を正す神。", origin: "太陽の生命力と公平な光を神の眼として崇拝した。" },
+                    { name: "キベチ（Kibechi）", loc: "タンザニア連合共和国（パレ山脈）", desc: "山と狩猟を守り、荒天を鎮める山の神。", origin: "山岳地帯の厳しい自然環境から村を守る存在として生成された。" },
+                    { name: "ムルング（Mulungu）", loc: "タンザニア連合共和国・ケニア共和国（沿岸スワヒリ地域）", desc: "雷鳴と共に現れ、悪を罰する雷と正義の最高神。", origin: "激しい嵐や雷の威力を神の怒りとして解釈した。" },
+                    { name: "ニャンテ（Nyante）", loc: "タンザニア連合共和国（キジバ地域）", desc: "慈愛に満ち、子供の誕生と育児を見守る女神。", origin: "命の誕生の奇跡を守護する母性神として敬われた。" },
+                    { name: "ムワムブ（Mwambu）", loc: "ケニア共和国（エルゴン山周辺）", desc: "最高神によって最初に創られ、人々に農耕を教えた文化英雄・始祖神。", origin: "農業の開始や文明の起源を説明するために伝えられた。" },
+                    { name: "アシ（Asis）", loc: "ケニア共和国（カレンジン族の地域）", desc: "太陽に象徴され、真理と生命の維持を約束する最高神。", origin: "日光の恵みと自然の周期を神格化して誕生した。" }
+                ]
+            },
+            south: {
+                name: "4. 南部アフリカ（Southern Africa）",
+                lat: -25.7,
+                lng: 28.2,
+                monsters: [
+                    { name: "トコロシェ（Tokoloshe）", loc: "南アフリカ共和国（ズールー・コサ族の地域）", desc: "背が低く毛むくじゃらの悪霊。夜中に寝ている人を襲う。", origin: "呪術師によって死体から作られたとされ、嫉妬や恨みを晴らす道具として生み出された。" },
+                    { name: "インカンボ（Inkanyamba）", loc: "南アフリカ共和国（ピーターマリッツバーグ・ハウイック滝）", desc: "馬の頭を持つ巨大な水蛇。怒ると猛烈な嵐を起こす。", origin: "滝の周囲で起きる突風や季節的な竜巻を水蛇の怒りとして説明した。" },
+                    { name: "グロツァンガ（Grootslang）", loc: "南アフリカ共和国（リッチターズフェルド洞窟）", desc: "ゾウの巨体と知恵、ヘビのしなやかさを持つ太古の巨大な怪物。", origin: "神々が世界を創った際、最初に創った生き物が強すぎたため分割し損ねた生き残り。" },
+                    { name: "ザンベジのコンガマトー（Kongamato）", loc: "ジンバブエ共和国（ザンベジ川流域）", desc: "川から現れ、舟を転覆させて人を水中へ引きずり込む翼のある怪物。", origin: "危険な水流と水生生物の脅威から伝承された。" },
+                    { name: "ニュズ（Nyuzu）", loc: "ジンバブエ共和国（マショナランド）", desc: "湖に棲む人魚のような精霊。人間を水中に連れ去り、呪術師としての力を与えて送り返す。", origin: "水の神聖さと、シャーマン（呪医）の修行過程を説明するために誕生。" },
+                    { name: "ンズーズー（Nzulzu）", loc: "南アフリカ共和国（ドラケンスバーグ山脈周辺）", desc: "額に一本の角を持つ一角獣の怪物。非常に凶暴。", origin: "山岳地帯の厳しい自然や、古代の岩壁画に描かれた動物のイメージから派生。" },
+                    { name: "ンブル（Mbulu）", loc: "南アフリカ共和国（東ケープ州）", desc: "自分の長い尾を隠しながら人間に近づき、食べ物を盗み食いする妖魔。", origin: "欲深い人間への警戒や、食料失踪の言い訳から生じた。" },
+                    { name: "マディモの悪霊（Madimo Evil Spirit）", loc: "ボツワナ共和国（カラハリ砂漠周辺）", desc: "砂嵐とともに現れ、旅人を幻覚に誘い込んで死に至らしめる砂漠の怪異。", origin: "砂漠での蜃気楼や遭難事故の危険を伝えるために生まれた。" },
+                    { name: "カイチ（Khaitchi）", loc: "ナミビア共和国（ナミブ砂漠）", desc: "夜の岩場に現れる半人半獣の怪物。旅人の知恵を試し、答えられない者を喰らう。", origin: "ナミブ砂漠の夜間徘徊への警告と知識の尊重から生まれた。" },
+                    { name: "ンゴツィ（Ngozi）", loc: "ジンバブエ共和国（ショナ族の地域）", desc: "無念の死を遂げた者が復讐のために蘇る恐ろしい怨霊。", origin: "殺人や不正に対する倫理的な抑止力として生み出された。" }
+                ],
+                gods: [
+                    { name: "カグン（Kaggen）", loc: "南アフリカ共和国・ボツワナ共和国（サン人の地域）", desc: "カマキリの姿をしたトリックスターであり、世界を創った神。", origin: "サン人の最古の伝承において、自然と野生動物を守る主として誕生した。" },
+                    { name: "ウンクルンクル（Unkulunkulu）", loc: "南アフリカ共和国（クワズール・ナタール州・ズールー族）", desc: "アシの原から生まれ、人間に生と死、農耕と火をもたらした創世主。", origin: "地球の奥深くから最初に出現し、すべての物事を定めたとされる。" },
+                    { name: "ノムカブラバナ（Nomkhubulwana）", loc: "南アフリカ共和国（ズールーランド）", desc: "虹と春、恵みの雨と作物を司る春の女神。", origin: "天空神の娘として、自然の再生と実りをもたらすために降臨した。" },
+                    { name: "ムワリ（Mwari）", loc: "ジンバブエ共和国（マトボの丘周辺・ショナ族）", desc: "姿を持たず、岩の割れ目から声で託宣を下す最高神。雨と平和を創出する。", origin: "太古からマトボの丘に鎮座し、王国の繁栄と雨をもたらす主として祀られた。" },
+                    { name: "ムルング（Mulungu - 南部）", loc: "モザンビーク共和国・マラウイ共和国", desc: "雲の上に住み、雷と正義を司る至高神。", origin: "天空の不可不思議な力と天候の変化を包括する存在として生じた。" },
+                    { name: "ツイ・ゴア（Tsui'goab）", loc: "ナミビア共和国（コイコイ人の地域）", desc: "風と雨を司る神。かつては偉大な戦士であった。", origin: "英雄としての記憶が世代を超えて神格化され、雨神となった。" },
+                    { name: "ガウナ（Gauna）", loc: "ボツワナ共和国（カラハリ砂漠・サン人）", desc: "死と試練を司る神。人間に試練を与えて魂の真価値を測る。", origin: "生老病死と砂漠の過酷な環境を統御する存在として定義された。" },
+                    { name: "ホラ（Khora）", loc: "レソト王国（モショエショエの山岳地域）", desc: "険しい山々と鉱脈を守護する大地の神。", origin: "山脈に囲まれたレソトの地理的環境から自発的に崇拝されるようになった。" },
+                    { name: "ンザンビ（Nzambi - 南部）", loc: "アンゴラ共和国（カビンダ周辺）", desc: "法律と道徳を人々に授け、秩序を守る裁きの神。", origin: "社会規範や掟を守らせるための絶対的権威として誕生した。" },
+                    { name: "ヘイツィ・イビブ（Heitsi-Eibib）", loc: "ナミビア共和国・南アフリカ共和国北部（ナマ人）", desc: "幾度死んでも蘇る伝説の魔法使い・神。道端の積石に宿る。", origin: "牛の処女受胎によって生まれ、邪悪な怪物を倒して人々の守護神となった。" }
+                ]
+            }
+        };
+
+        // Initialize Map
+        const map = L.map('map', {
+            center: [2.0, 20.0],
+            zoom: 4,
+            minZoom: 3,
+            maxZoom: 6
+        });
+
+        // Add Sepia-style Map Tiles (Esri World Street Map Base)
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        let activeRegionKey = null;
+        let activeCategory = 'monsters';
+
+        // Add Custom Markers
+        Object.keys(mythData).forEach(key => {
+            const region = mythData[key];
+            const customIcon = L.divIcon({
+                className: 'custom-pin',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+
+            const marker = L.marker([region.lat, region.lng], { icon: customIcon }).addTo(map);
+            
+            marker.on('click', () => {
+                activeRegionKey = key;
+                renderPanel();
+                map.flyTo([region.lat, region.lng], 4.5, { duration: 1 });
+            });
+        });
+
+        // Render Side Panel
+        function renderPanel() {
+            if (!activeRegionKey) return;
+            const region = mythData[activeRegionKey];
+            const panel = document.getElementById('details-panel');
+
+            let html = `
+                <h2 class="region-title">${region.name}</h2>
+                <div class="section-tab">
+                    <button class="tab-btn ${activeCategory === 'monsters' ? 'active' : ''}" onclick="setCategory('monsters')">化け物 (10体)</button>
+                    <button class="tab-btn ${activeCategory === 'gods' ? 'active' : ''}" onclick="setCategory('gods')">神様 (10柱)</button>
+                </div>
+                <div class="entries-list">
+            `;
+
+            const items = region[activeCategory];
+            items.forEach(item => {
+                html += `
+                    <div class="entry-card">
+                        <h4>${item.name}</h4>
+                        <div class="entry-location">📍 ${item.loc}</div>
+                        <p><strong>【詳細】</strong>${item.desc}</p>
+                        <p><strong>【誕生経緯】</strong>${item.origin}</p>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            panel.innerHTML = html;
+        }
+
+        // Switch Category Tab
+        function setCategory(cat) {
+            activeCategory = cat;
+            renderPanel();
+        }
+    </script>
+</body>
+</html>
